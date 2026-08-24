@@ -2,7 +2,7 @@ from typing import Annotated
 from fastapi import Depends
 from sqlmodel import Session, SQLModel, create_engine
 
-postgres_url = "postgresql://admin:secret@localhost:5432/urlshortener"
+postgres_url = "postgresql://admin:secret@db:5432/urlshortener"
 
 engine = create_engine(postgres_url)
 

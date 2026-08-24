@@ -1,7 +1,7 @@
 import redis
 import time
 
-r = redis.Redis(decode_responses = True)
+r = redis.Redis(host = "redis", decode_responses = True)
 
 def is_rate_limited(ip):
     current_time = time.time()
