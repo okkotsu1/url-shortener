@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from database import create_db_and_tables
 from models import URLs
@@ -8,7 +8,7 @@ from pydantic import BaseModel, HttpUrl
 from database import SessionDep 
 from utils import generate_short_code
 from cache import get_cached_url, set_cached_url
-
+from limiter import is_rate_limited
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
@@ -24,10 +24,20 @@ class URLRequest(BaseModel):
 def root():
     return {"status" : "alive"}
 
+@app.get("/whoami")
+def get_ip(request : Request):
+    client_ip = request.client.host
+    return client_ip
 
 @app.post("/shorten/", status_code=201)
-def shorten(request : URLRequest, db : SessionDep):
-    url = URLs(original_url = str(request.original_url), short_code = generate_short_code(6))
+def shorten(url_data : URLRequest, http_request : Request, db : SessionDep):
+    client_ip = http_request.client.host
+    if is_rate_limited(client_ip):
+        raise HTTPException(
+            status_code = 429,
+            detail = f"{client_ip} is rate limited."
+        )
+    url = URLs(original_url = str(url_data.original_url), short_code = generate_short_code(6))
     db.add(url)
     db.commit()
     db.refresh(url)
@@ -53,4 +63,3 @@ def redirect(short_code : str, db : SessionDep):
         return RedirectResponse(url = result.original_url)
 
 
-    
