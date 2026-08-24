@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from pydantic import BaseModel, HttpUrl
 from database import SessionDep 
 from utils import generate_short_code
+from cache import get_cached_url, set_cached_url
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -37,6 +38,9 @@ def shorten(request : URLRequest, db : SessionDep):
 
 @app.get("/{short_code}", status_code = 302)
 def redirect(short_code : str, db : SessionDep):
+    cached_url = get_cached_url(short_code)
+    if cached_url != None:
+        return RedirectResponse(url = cached_url)
     statement = select(URLs).where(URLs.short_code == short_code)
     result = db.exec(statement).first()
     if result == None:
@@ -45,5 +49,8 @@ def redirect(short_code : str, db : SessionDep):
             detail = f"{short_code} not found."
         )
     else:
+        set_cached_url(result.short_code, result.original_url)
         return RedirectResponse(url = result.original_url)
+
+
     
